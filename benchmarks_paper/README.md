@@ -27,8 +27,8 @@ None
 1. **Clone the GitHub repository:**
    ```bash
    git clone https://github.com/CentML/lorafusion.git
-   git checkout eurosys-ae
    cd lorafusion
+   git checkout eurosys-ae
    ```
 
 2. **Install the requirements by running this command or following `../docs/installation.md`:**

@@ -10,7 +10,7 @@ pip install -r requirements.txt
 pip install -e .
 
 # Install CUDAToolkit
-conda install nvidia/label/cuda-12.6.0::cuda-toolkit
+conda install -y nvidia/label/cuda-12.6.0::cuda-toolkit
 
 # Install PuLP and CoincBC for the proposed solver
 pip install pulp
