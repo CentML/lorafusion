@@ -1,0 +1,43 @@
+name: Qwen/QwQ-32B
+base_model_dtype: bfloat16
+num_layers: 64
+hidden_size: 5120
+decoder_layer_param_count: 489702400
+pre_layer_param_count: 778567680
+post_layer_param_count: 778567680
+decoder_layer_lora_param_count_per_rank: 2097152
+decoder_layer_saved_activations_no_ckpt_count: 166084.5
+decoder_layer_saved_activations_with_ckpt_count: 5120
+peak_intermediate_activation_count: 910593.5
+peak_intermediate_activation_count_without_lm_head: 304385.0
+decoder_layer_fwd_time_by_tokens:
+  512: 0.0012587358951568605
+  1024: 0.0022097759246826176
+  2048: 0.004194367885589601
+  4096: 0.008422193527221684
+  8192: 0.01640996932983399
+decoder_layer_fwd_bwd_time_by_tokens:
+  512: 0.0028163838386535637
+  1024: 0.004794335842132569
+  2048: 0.009002367973327638
+  4096: 0.017216287612915035
+  8192: 0.03407368087768556
+pre_post_layer_fwd_bwd_time_by_tokens:
+  512: 0.0037152485847473174
+  1024: 0.006843647956848144
+  2048: 0.013922840118408199
+  4096: 0.028392223358154306
+  8192: 0.05552341270446774
+pre_layer_tp_comm_count: 5120
+post_layer_tp_comm_count: 5120
+_peak_memory_usage_for_verification:
+  - 8220412928
+  - 8390483456
+  - 8561078272
+  - 8730624512
+_num_layers_for_verification:
+  - 1
+  - 2
+  - 3
+  - 4
+_batch_size_for_verification: 1

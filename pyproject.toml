@@ -1,0 +1,38 @@
+[project]
+name = "lorafusion"
+version = "0.1.0"
+description = "Dynamic Multi-LoRA Fine-Tuning"
+readme = "README.md"
+authors = [{ name = "Zhanda Zhu", email = "zhandazhu@gmail.com" }]
+requires-python = ">=3.12"
+
+[project.urls]
+Homepage = "https://github.com/dazz993/lorafusion"
+
+[tool.setuptools]
+packages = ["lorafusion"]
+
+[tool.ruff]
+lint.select = ["ALL"]
+lint.ignore = [
+  "ANN002",  # Missing type annotation for `*args`"
+  "ANN003",  # Missing type annotation for `**kwargs`
+  "ARG",     # flake8-unused-arguments
+  "COM812",  # Trailing comma missing
+  "FIX002",  # Line contains TODO, consider resolving the issue
+  "PLR0913", # Too many arguments in function definition
+  "SIM117",  # Use a single `with` statement with multiple contexts instead of nested
+  # `with` statements
+  "TD002",   # Missing author in TODO
+  "TD003",   # Missing issue number in TODO
+  "PLW0603", # Using the global statement to update `GLOBAL_S_PTR_LIST` is discouraged
+  "TRY003",  # Avoid specifying long messages outside the exception class
+  "EM102",   # Exception must not use an f-string literal, assign to variable first
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.mypy]
+check_untyped_defs = true
+ignore_missing_imports = true

@@ -1,0 +1,43 @@
+name: meta-llama/Llama-3.1-70B-Instruct
+base_model_dtype: bfloat16
+num_layers: 80
+hidden_size: 8192
+decoder_layer_param_count: 858243072
+pre_layer_param_count: 1050673152
+post_layer_param_count: 1050673152
+decoder_layer_lora_param_count_per_rank: 2588672
+decoder_layer_saved_activations_no_ckpt_count: 209140.5
+decoder_layer_saved_activations_with_ckpt_count: 8192
+peak_intermediate_activation_count: 757505.5
+peak_intermediate_activation_count_without_lm_head: 252673.0
+decoder_layer_fwd_time_by_tokens:
+  512: 0.0018331201076507552
+  1024: 0.0034918398857116707
+  2048: 0.007044928550720215
+  4096: 0.013550960540771484
+  8192: 0.02627310180664061
+decoder_layer_fwd_bwd_time_by_tokens:
+  512: 0.0038330562114715586
+  1024: 0.007422912597656253
+  2048: 0.014016593933105462
+  4096: 0.02736243057250977
+  8192: 0.054082763671875006
+pre_post_layer_fwd_bwd_time_by_tokens:
+  512: 0.003822415828704833
+  1024: 0.0075505986213684016
+  2048: 0.016695196151733413
+  4096: 0.033442012786865226
+  8192: 0.06801713562011719
+pre_layer_tp_comm_count: 8192
+post_layer_tp_comm_count: 8192
+_peak_memory_usage_for_verification:
+  - 12146328576
+  - 12360488448
+  - 12574648320
+  - 12788808192
+_num_layers_for_verification:
+  - 1
+  - 2
+  - 3
+  - 4
+_batch_size_for_verification: 1
