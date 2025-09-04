@@ -23,6 +23,11 @@ pip install -r requirements.txt
 pip install -e .
 ```
 
+If you want to use NCU, perhaps you need to install the CUDAToolkit:
+```bash
+conda install -y nvidia/label/cuda-12.6.0::cuda-toolkit
+```
+
 Additionally, if you want to use the proposed solver, you need to install the following dependencies:
 
 ```bash
