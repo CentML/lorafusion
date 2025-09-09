@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import random
+import warnings
 
 import torch
 
@@ -13,15 +14,72 @@ from lorafusion.ops.triton_ops.fused_lora_dyw_dsa import fused_lora_dyw_dsa
 from lorafusion.ops.triton_ops.fused_lora_dyw_dsa_tma import fused_lora_dyw_dsa_tma
 from lorafusion.ops.triton_ops.fused_lora_xw_sb import fused_lora_xw_sb
 from lorafusion.ops.triton_ops.fused_lora_xw_sb_tma import fused_lora_xw_sb_tma
+from lorafusion.ops.triton_ops.tma_utils import HAS_TMA_DESC
 
-FORWARD_USE_TMA = True
-BACKWARD_USE_TMA = False
+
+def _get_bool_env_var(env_var: str, *, default: bool = False) -> bool:
+    """Get a boolean value from an environment variable.
+    
+    Args:
+        env_var: The environment variable name.
+        default: The default value if the environment variable is not set.
+        
+    Returns:
+        The boolean value from the environment variable or default.
+    """
+    value = os.environ.get(env_var, "").lower()
+    if value in ("true", "1", "yes", "on"):
+        return True
+    elif value in ("false", "0", "no", "off"):
+        return False
+    else:
+        return default
+
+
+def _check_tma_support() -> bool:
+    """Check if the current hardware supports TMA.
+    
+    Returns:
+        True if TMA is supported, False otherwise.
+    """
+    return HAS_TMA_DESC
+
+
+# Configuration from environment variables with hardware checks
+FORWARD_USE_TMA_ENV = _get_bool_env_var("LORAFUSION_FORWARD_USE_TMA", True)
+BACKWARD_USE_TMA_ENV = _get_bool_env_var("LORAFUSION_BACKWARD_USE_TMA", False)
+USE_FUSED_DROPOUT_MATMUL_ENV = _get_bool_env_var("LORAFUSION_USE_FUSED_DROPOUT_MATMUL", False)
+
+# Check hardware support and apply environment variable settings
+HARDWARE_SUPPORTS_TMA = _check_tma_support()
+
+# Apply configuration with hardware checks
+FORWARD_USE_TMA = FORWARD_USE_TMA_ENV and HARDWARE_SUPPORTS_TMA
+BACKWARD_USE_TMA = BACKWARD_USE_TMA_ENV and HARDWARE_SUPPORTS_TMA
+USE_FUSED_DROPOUT_MATMUL = USE_FUSED_DROPOUT_MATMUL_ENV
+
+# Warn users if TMA was requested but not supported
+if FORWARD_USE_TMA_ENV and not HARDWARE_SUPPORTS_TMA:
+    warnings.warn(
+        "LORAFUSION_FORWARD_USE_TMA is enabled but TMA is not supported on this hardware. "
+        "Falling back to non-TMA implementation.",
+        UserWarning,
+        stacklevel=2,
+    )
+
+if BACKWARD_USE_TMA_ENV and not HARDWARE_SUPPORTS_TMA:
+    warnings.warn(
+        "LORAFUSION_BACKWARD_USE_TMA is enabled but TMA is not supported on this hardware. "
+        "Falling back to non-TMA implementation.",
+        UserWarning,
+        stacklevel=2,
+    )
+
+# Select appropriate functions based on configuration
 fused_lora_xw_sb_func = fused_lora_xw_sb_tma if FORWARD_USE_TMA else fused_lora_xw_sb
 fused_lora_dyw_dsa_func = (
     fused_lora_dyw_dsa_tma if BACKWARD_USE_TMA else fused_lora_dyw_dsa
 )
-
-USE_FUSED_DROPOUT_MATMUL = False
 
 
 def _fused_linear_lora_forward(
