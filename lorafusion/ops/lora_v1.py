@@ -37,12 +37,12 @@ def _get_bool_env_var(env_var: str, *, default: bool = False) -> bool:
 
 
 def _use_tma_kernel() -> bool:
-    """Check whether to use TMA kernel.
+    """Check whether to use TMA kernel. It also needs SM >= 90 since it uses cp.async.
 
     Returns:
-        True if TMA is supported, False otherwise.
+        True if TMA is supported and SM >= 90, False otherwise.
     """
-    return HAS_TMA_DESC
+    return HAS_TMA_DESC and torch.cuda.get_device_properties().major >= 9 # noqa: PLR2004
 
 
 # Configuration from environment variables with hardware checks
