@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import random
 import warnings
 
@@ -19,26 +20,25 @@ from lorafusion.ops.triton_ops.tma_utils import HAS_TMA_DESC
 
 def _get_bool_env_var(env_var: str, *, default: bool = False) -> bool:
     """Get a boolean value from an environment variable.
-    
+
     Args:
         env_var: The environment variable name.
         default: The default value if the environment variable is not set.
-        
+
     Returns:
         The boolean value from the environment variable or default.
     """
     value = os.environ.get(env_var, "").lower()
     if value in ("true", "1", "yes", "on"):
         return True
-    elif value in ("false", "0", "no", "off"):
+    if value in ("false", "0", "no", "off"):
         return False
-    else:
-        return default
+    return default
 
 
-def _check_tma_support() -> bool:
-    """Check if the current hardware supports TMA.
-    
+def _use_tma_kernel() -> bool:
+    """Check whether to use TMA kernel.
+
     Returns:
         True if TMA is supported, False otherwise.
     """
@@ -46,31 +46,33 @@ def _check_tma_support() -> bool:
 
 
 # Configuration from environment variables with hardware checks
-FORWARD_USE_TMA_ENV = _get_bool_env_var("LORAFUSION_FORWARD_USE_TMA", True)
-BACKWARD_USE_TMA_ENV = _get_bool_env_var("LORAFUSION_BACKWARD_USE_TMA", False)
-USE_FUSED_DROPOUT_MATMUL_ENV = _get_bool_env_var("LORAFUSION_USE_FUSED_DROPOUT_MATMUL", False)
+FORWARD_USE_TMA_ENV = _get_bool_env_var("LORAFUSION_FORWARD_USE_TMA", default=True)
+BACKWARD_USE_TMA_ENV = _get_bool_env_var("LORAFUSION_BACKWARD_USE_TMA", default=False)
+USE_FUSED_DROPOUT_MATMUL_ENV = _get_bool_env_var(
+    "LORAFUSION_USE_FUSED_DROPOUT_MATMUL", default=False
+)
 
 # Check hardware support and apply environment variable settings
-HARDWARE_SUPPORTS_TMA = _check_tma_support()
+HARDWARE_USE_TMA = _use_tma_kernel()
 
 # Apply configuration with hardware checks
-FORWARD_USE_TMA = FORWARD_USE_TMA_ENV and HARDWARE_SUPPORTS_TMA
-BACKWARD_USE_TMA = BACKWARD_USE_TMA_ENV and HARDWARE_SUPPORTS_TMA
+FORWARD_USE_TMA = FORWARD_USE_TMA_ENV and HARDWARE_USE_TMA
+BACKWARD_USE_TMA = BACKWARD_USE_TMA_ENV and HARDWARE_USE_TMA
 USE_FUSED_DROPOUT_MATMUL = USE_FUSED_DROPOUT_MATMUL_ENV
 
 # Warn users if TMA was requested but not supported
-if FORWARD_USE_TMA_ENV and not HARDWARE_SUPPORTS_TMA:
+if FORWARD_USE_TMA_ENV and not HARDWARE_USE_TMA:
     warnings.warn(
-        "LORAFUSION_FORWARD_USE_TMA is enabled but TMA is not supported on this hardware. "
-        "Falling back to non-TMA implementation.",
+        "LORAFUSION_FORWARD_USE_TMA is enabled but it is not supported by the hardware."
+        " Falling back to non-TMA implementation.",
         UserWarning,
         stacklevel=2,
     )
 
-if BACKWARD_USE_TMA_ENV and not HARDWARE_SUPPORTS_TMA:
+if BACKWARD_USE_TMA_ENV and not HARDWARE_USE_TMA:
     warnings.warn(
-        "LORAFUSION_BACKWARD_USE_TMA is enabled but TMA is not supported on this hardware. "
-        "Falling back to non-TMA implementation.",
+        "LORAFUSION_BACKWARD_USE_TMA is enabled but it is not supported by the hardware."
+        " Falling back to non-TMA implementation.",
         UserWarning,
         stacklevel=2,
     )
