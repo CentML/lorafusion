@@ -9,6 +9,7 @@ import triton
 import triton.language as tl
 from loguru import logger
 
+from lorafusion.ops.triton_ops.config import get_kernel_configs
 from lorafusion.ops.triton_ops.utils import torch_dtype_to_triton_dtype
 from lorafusion.utils.benchmark import benchmark, set_warmup_and_number
 from lorafusion.utils.testing import assert_verbose_allclose_two_rounds
@@ -67,24 +68,7 @@ def torch_lora_xw_sb_ref(
 
 def fused_lora_xw_sb_kernel_get_configs() -> list[triton.Config]:
     """Get the configurations for the fused LoRA xw + sb kernel."""
-    return [
-        triton.Config(
-            {
-                "BLOCK_SIZE_M": BM,
-                "BLOCK_SIZE_N": BN,
-                "BLOCK_SIZE_K": BK,
-                "GROUP_SIZE_M": 8,
-            },
-            num_stages=s,
-            num_warps=w,
-        )
-        for BM in [128]
-        for BN in [256]
-        for BK in [64]
-        for s in ([4])
-        for w in [8]
-        if BM * BK < 256 * 256
-    ]
+    return get_kernel_configs("fused_lora_xw_sb")
 
 
 @triton.autotune(

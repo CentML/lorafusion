@@ -9,6 +9,7 @@ import triton
 import triton.language as tl
 from loguru import logger
 
+from lorafusion.ops.triton_ops.config import get_kernel_configs
 from lorafusion.ops.triton_ops.tma_utils import (
     TmaAutoTuneHelper,
     _compute_pid,
@@ -72,50 +73,8 @@ def torch_lora_xw_sb_ref(
 
 
 def fused_lora_xw_sb_tma_kernel_get_configs() -> list[triton.Config]:
-    """Get the configurations for the fused LoRA xw + sb kernel using TMA.
-
-    Note:
-        - Best config in H100 for 4096x4096:
-            - BM = 128, BN = 256, BK = 64, s = 3, w = 8,
-            - SUBTILE = False, LUF = None, FLAT = False
-        - While for plain matmul, FLAT should be set to True.
-            we find that current implementation of Flatten makes the performance
-            quite bad for this kernel.
-    """
-    return [
-        triton.Config(
-            {
-                "BLOCK_SIZE_M": BM,
-                "BLOCK_SIZE_N": BN,
-                "BLOCK_SIZE_K": BK,
-                "GROUP_SIZE_M": 8,
-                "EPILOGUE_SUBTILE": SUBTILE,
-                "LOOP_UNROLL_FACTOR": LUF,
-                "FLATTEN": FLAT,
-            },
-            num_stages=s,
-            num_warps=w,
-        )
-        # # For tuning:
-        # for BM in [128]
-        # for BN in [128, 256]
-        # for BK in [32, 64, 128]
-        # for s in ([3, 4, 5, 6])
-        # for w in [4, 8]
-        # for SUBTILE in [True, False]
-        # for LUF in [None, 1, 2, 8]
-        # for FLAT in [True, False]
-        # # Pre-tuned config:
-        for BM in [128]
-        for BN in [256]
-        for BK in [64]
-        for s in ([3])
-        for w in [8]
-        for SUBTILE in [False]
-        for LUF in [None]
-        for FLAT in [False]
-        if BM * BK < 256 * 256
-    ]
+    """Get the configurations for the fused LoRA xw + sb kernel using TMA."""
+    return get_kernel_configs("fused_lora_xw_sb_tma")
 
 
 @triton.autotune(

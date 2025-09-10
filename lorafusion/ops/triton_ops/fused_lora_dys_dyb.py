@@ -10,6 +10,7 @@ import triton
 import triton.language as tl
 from loguru import logger
 
+from lorafusion.ops.triton_ops.config import get_kernel_configs
 from lorafusion.ops.triton_ops.utils import torch_dtype_to_triton_dtype
 from lorafusion.utils.benchmark import benchmark, set_warmup_and_number
 
@@ -66,23 +67,7 @@ def torch_lora_dys_dyb_ref(
 
 def fused_lora_dys_dyb_kernel_get_configs() -> list[triton.Config]:
     """Get the configurations for the fused LoRA dy @ s + dy @ b * alpha kernel."""
-    return [
-        triton.Config(
-            {
-                "BLOCK_SIZE_M": BM,
-                "BLOCK_SIZE_K": BK,
-                "GROUP_SIZE_M": GM,
-            },
-            num_stages=s,
-            num_warps=w,
-        )
-        for BM in [128]
-        for BK in [128]
-        for GM in [8]
-        for s in ([5])
-        for w in [8]
-        if BM * BK < 256 * 256
-    ]
+    return get_kernel_configs("fused_lora_dys_dyb")
 
 
 @triton.autotune(
