@@ -220,6 +220,22 @@ def fused_multi_lora_dyw_dsa(
       mask: [M, N]
       dx: [M, N]
     """
+    if config is None:
+        lora_kernel_config = get_lora_kernel_config("fused_multi_lora_dyw_dsa")
+    else:
+        lora_kernel_config = config
+
+    if block_size_m is not None and lora_kernel_config.block_size_m != block_size_m:
+        raise ValueError(
+            f"block_size_m for fused_multi_lora_dyw_dsa is not set and "
+            f"lora_kernel_config.block_size_m != input block_size_m. "
+            f"lora_kernel_config.block_size_m: {lora_kernel_config.block_size_m}, "
+            f"block_size_m: {block_size_m}."
+        )
+
+    if block_size_m is None:
+        block_size_m = lora_kernel_config.block_size_m
+
     # Check constraints.
     m_y, n_y = dy.shape
     n_w, k_w = w.shape
@@ -250,19 +266,6 @@ def fused_multi_lora_dyw_dsa(
     grid = lambda META: (
         triton.cdiv(M, META["BLOCK_SIZE_M"]) * triton.cdiv(N, META["BLOCK_SIZE_N"]),
     )
-
-    if config is None:
-        lora_kernel_config = get_lora_kernel_config("fused_multi_lora_dyw_dsa")
-    else:
-        lora_kernel_config = config
-
-    if block_size_m is not None and lora_kernel_config.block_size_m != block_size_m:
-        raise ValueError(
-            f"block_size_m for fused_multi_lora_dyw_dsa is not set and "
-            f"lora_kernel_config.block_size_m != input block_size_m. "
-            f"lora_kernel_config.block_size_m: {lora_kernel_config.block_size_m}, "
-            f"block_size_m: {block_size_m}."
-        )
 
     triton_config = lora_kernel_config.to_triton_config()
 

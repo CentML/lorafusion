@@ -254,6 +254,22 @@ def fused_multi_lora_xw_sb(
         )
         raise ValueError(msg)
 
+    if config is None:
+        lora_kernel_config = get_lora_kernel_config("fused_multi_lora_xw_sb")
+    else:
+        lora_kernel_config = config
+
+    if block_size_m is not None and lora_kernel_config.block_size_m != block_size_m:
+        raise ValueError(
+            f"block_size_m for fused_multi_lora_xw_sb is not set and "
+            f"lora_kernel_config.block_size_m != input block_size_m. "
+            f"lora_kernel_config.block_size_m: {lora_kernel_config.block_size_m}, "
+            f"block_size_m: {block_size_m}."
+        )
+
+    if block_size_m is None:
+        block_size_m = lora_kernel_config.block_size_m
+
     # Construct the s and b ptrs list
     if s_ptrs_list is None or b_ptrs_list is None:
         if raw_s_list is None or raw_b_list is None:
@@ -292,19 +308,6 @@ def fused_multi_lora_xw_sb(
     grid = lambda META: (
         triton.cdiv(M, META["BLOCK_SIZE_M"]) * triton.cdiv(N, META["BLOCK_SIZE_N"]),
     )
-
-    if config is None:
-        lora_kernel_config = get_lora_kernel_config("fused_multi_lora_xw_sb")
-    else:
-        lora_kernel_config = config
-
-    if block_size_m is not None and lora_kernel_config.block_size_m != block_size_m:
-        raise ValueError(
-            f"block_size_m for fused_multi_lora_xw_sb is not set and "
-            f"lora_kernel_config.block_size_m != input block_size_m. "
-            f"lora_kernel_config.block_size_m: {lora_kernel_config.block_size_m}, "
-            f"block_size_m: {block_size_m}."
-        )
 
     triton_config = lora_kernel_config.to_triton_config()
 

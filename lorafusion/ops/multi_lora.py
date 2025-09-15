@@ -12,16 +12,17 @@ from loguru import logger
 from megatron.core import parallel_state
 
 from lorafusion.ops.triton_ops.blocked_dropout import blocked_seeded_dropout
+from lorafusion.ops.triton_ops.config import get_lora_kernel_config
 from lorafusion.ops.triton_ops.dropout import seeded_dropout
+from lorafusion.ops.triton_ops.fused_multi_lora_dys_dyb import (
+    fused_multi_lora_dys_dyb,
+)
 from lorafusion.ops.triton_ops.fused_multi_lora_dyw_dsa import (
     fused_multi_lora_dyw_dsa,
 )
 from lorafusion.ops.triton_ops.fused_multi_lora_xw_sb import (
     construct_s_and_b_ptrs_list,
     fused_multi_lora_xw_sb,
-)
-from lorafusion.ops.triton_ops.fused_multi_lora_dys_dyb import (
-    fused_multi_lora_dys_dyb,
 )
 
 if TYPE_CHECKING:
@@ -98,7 +99,7 @@ class MultiLoRAManager:
                 f"got {len(multi_lora_global_batch_sizes)}"
             )
             raise ValueError(msg)
-        self.adapter_sample_counts = {i: 0 for i in range(len(lora_configs))}
+        self.adapter_sample_counts = dict.fromkeys(range(len(lora_configs)), 0)
 
         # Initialize deque to store batch information for pipeline stages
         # Size is num_pipeline_stages to accommodate all microbatches in the pipeline
@@ -519,6 +520,7 @@ def _fused_linear_multi_lora_forward(
     s_ptrs_list, b_ptrs_list, _, _ = construct_s_and_b_ptrs_list(
         raw_s_list=s_list,
         raw_b_list=lora_b_list,
+        block_size_m=get_lora_kernel_config("fused_multi_lora_block_size_m"),
     )
 
     y = fused_multi_lora_xw_sb(
@@ -568,6 +570,7 @@ def _fused_linear_multi_lora_backward(
         block_to_alpha=block_to_alpha,
         max_r=max_r,
         total_r=total_r,
+        block_size_m=get_lora_kernel_config("fused_multi_lora_block_size_m"),
     )
 
     # Calculate da_list from ds and masked_scaled_x

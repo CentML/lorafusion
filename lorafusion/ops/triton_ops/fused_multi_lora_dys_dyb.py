@@ -187,12 +187,12 @@ def fused_multi_lora_dys_dyb(
     block_to_alpha: torch.Tensor,
     max_r: int,
     total_r: int,
-    block_size_m,
     s_ptrs_list: torch.Tensor | None = None,
     b_ptrs_list: torch.Tensor | None = None,
     raw_s_list: list[torch.Tensor] | None = None,
     raw_b_list: list[torch.Tensor] | None = None,
     *,
+    block_size_m: int | None = None,
     config: LoRATritonConfig | None = None,
     **kwargs,
 ) -> tuple[list[torch.Tensor], list[torch.Tensor]]:
@@ -215,6 +215,22 @@ def fused_multi_lora_dys_dyb(
             db_list: List of gradients with respect to each b
             ds_list: List of gradients with respect to each s
     """
+    if config is None:
+        lora_kernel_config = get_lora_kernel_config("fused_multi_lora_dys_dyb")
+    else:
+        lora_kernel_config = config
+
+    if block_size_m is not None and lora_kernel_config.block_size_m != block_size_m:
+        raise ValueError(
+            f"block_size_m for fused_multi_lora_dys_dyb is not set and "
+            f"lora_kernel_config.block_size_m != input block_size_m. "
+            f"lora_kernel_config.block_size_m: {lora_kernel_config.block_size_m}, "
+            f"block_size_m: {block_size_m}."
+        )
+
+    if block_size_m is None:
+        block_size_m = lora_kernel_config.block_size_m
+
     # Construct the pointers for s and b tensors
     if s_ptrs_list is None or b_ptrs_list is None:
         if raw_s_list is None or raw_b_list is None:
@@ -263,19 +279,6 @@ def fused_multi_lora_dys_dyb(
     grid = lambda META: (
         triton.cdiv(M, META["BLOCK_SIZE_M"]) * triton.cdiv(K, META["BLOCK_SIZE_K"]),
     )
-
-    if config is None:
-        lora_kernel_config = get_lora_kernel_config("fused_multi_lora_dys_dyb")
-    else:
-        lora_kernel_config = config
-
-    if block_size_m is not None and lora_kernel_config.block_size_m != block_size_m:
-        raise ValueError(
-            f"block_size_m for fused_multi_lora_dys_dyb is not set and "
-            f"lora_kernel_config.block_size_m != input block_size_m. "
-            f"lora_kernel_config.block_size_m: {lora_kernel_config.block_size_m}, "
-            f"block_size_m: {block_size_m}."
-        )
 
     triton_config = lora_kernel_config.to_triton_config()
 

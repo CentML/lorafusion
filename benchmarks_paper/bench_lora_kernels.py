@@ -30,8 +30,8 @@ if TYPE_CHECKING:
     from peft import PeftConfig
 
 # For benchmarking
-WARMUP = 1000
-NUMBER = 500
+WARMUP = 200
+NUMBER = 200
 USE_CUDA_GRAPH = True
 USE_CUDA_EVENT = True
 NCU_PROFILE = False
