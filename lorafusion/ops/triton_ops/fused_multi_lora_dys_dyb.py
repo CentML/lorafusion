@@ -9,7 +9,7 @@ from loguru import logger
 from lorafusion.ops.triton_ops.config import LoRATritonConfig, get_lora_kernel_config
 from lorafusion.ops.triton_ops.utils import torch_dtype_to_triton_dtype
 
-MAX_NUM_BLOCK_M_SIZE = 128  # max: MAX_NUM_BLOCK_M_SIZE * BLOCK_SIZE_M tokens
+MAX_NUM_BLOCK_M_SIZE = 192  # max: MAX_NUM_BLOCK_M_SIZE * BLOCK_SIZE_M tokens
 GLOBAL_S_PTR_LIST = None
 GLOBAL_B_PTR_LIST = None
 
