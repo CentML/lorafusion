@@ -1,4 +1,4 @@
-# ruff: noqa: ANN001, N803, N806, E731
+# ruff: noqa: ANN001, N803, N806
 """Triton Fused LoRA xw + sb using TMA."""
 
 from functools import partial
@@ -9,7 +9,7 @@ import triton
 import triton.language as tl
 from loguru import logger
 
-from lorafusion.ops.triton_ops.config import get_kernel_configs
+from lorafusion.ops.triton_ops.config import LoRATritonConfig, get_lora_kernel_config
 from lorafusion.ops.triton_ops.tma_utils import (
     TmaAutoTuneHelper,
     _compute_pid,
@@ -72,15 +72,6 @@ def torch_lora_xw_sb_ref(
     return result
 
 
-def fused_lora_xw_sb_tma_kernel_get_configs() -> list[triton.Config]:
-    """Get the configurations for the fused LoRA xw + sb kernel using TMA."""
-    return get_kernel_configs("fused_lora_xw_sb_tma")
-
-
-@triton.autotune(
-    configs=fused_lora_xw_sb_tma_kernel_get_configs(),
-    key=["M", "N", "K", "OUTPUT_DTYPE"],
-)
 @triton.jit
 def fused_lora_xw_sb_tma_kernel(
     x_desc_ptr,
@@ -258,6 +249,7 @@ def fused_lora_xw_sb_tma(  # noqa: C901
     alpha: float,
     *,
     bias: torch.Tensor | None = None,
+    config: LoRATritonConfig | None = None,
 ) -> torch.Tensor:
     """Triton Fused LoRA xw + sb using TMA."""
     # Check constraints.
@@ -306,6 +298,17 @@ def fused_lora_xw_sb_tma(  # noqa: C901
 
     # Allocates output.
     out = torch.empty((M, N), device=x.device, dtype=x.dtype)
+
+    # Get configs
+    if config is None:
+        lora_kernel_config = get_lora_kernel_config("fused_lora_xw_sb_tma")
+    else:
+        lora_kernel_config = config
+    triton_config = lora_kernel_config.to_triton_config()
+    # Set TMA-specific config parameters
+    triton_config.kwargs["EPILOGUE_SUBTILE"] = False
+    triton_config.kwargs["LOOP_UNROLL_FACTOR"] = None
+    triton_config.kwargs["FLATTEN"] = False
 
     # Initialize TMA descriptors.
     NUM_SMS = torch.cuda.get_device_properties("cuda").multi_processor_count
@@ -373,6 +376,7 @@ def fused_lora_xw_sb_tma(  # noqa: C901
         bias_stride,
         NUM_SMS=NUM_SMS,
         OUTPUT_DTYPE=torch_dtype_to_triton_dtype(out.dtype),
+        **triton_config.all_kwargs(),
     )
     if (
         not torch.compiler.is_compiling()

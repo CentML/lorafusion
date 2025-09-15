@@ -9,7 +9,7 @@ import triton
 import triton.language as tl
 from loguru import logger
 
-from lorafusion.ops.triton_ops.config import get_kernel_configs
+from lorafusion.ops.triton_ops.config import LoRATritonConfig, get_lora_kernel_config
 from lorafusion.ops.triton_ops.utils import torch_dtype_to_triton_dtype
 from lorafusion.utils.benchmark import benchmark, set_warmup_and_number
 from lorafusion.utils.testing import assert_verbose_allclose_two_rounds
@@ -61,15 +61,6 @@ def torch_lora_dyw_dsa_ref(
     return dy @ w + torch.where(dropout_mask, ds @ a / (1 - dropout_p), 0.0)
 
 
-def fused_lora_dyw_dsa_kernel_get_configs() -> list[triton.Config]:
-    """Get the configurations for the fused LoRA dyw + dsa kernel."""
-    return get_kernel_configs("fused_lora_dyw_dsa")
-
-
-@triton.autotune(
-    configs=fused_lora_dyw_dsa_kernel_get_configs(),
-    key=["M", "N", "K", "OUTPUT_DTYPE"],
-)
 @triton.jit
 def fused_lora_dyw_dsa_kernel(
     dy_ptr,
@@ -193,6 +184,8 @@ def fused_lora_dyw_dsa(
     a: torch.Tensor,
     dropout_p: float,
     dropout_mask: torch.Tensor | None = None,
+    *,
+    config: LoRATritonConfig | None = None,
 ) -> torch.Tensor:
     """Triton Fused LoRA dyw + dsa.
 
@@ -247,6 +240,14 @@ def fused_lora_dyw_dsa(
     R = r_s
     # Allocates output.
     # 1D launch kernel where each block gets its own program.
+    
+    # Get configs
+    if config is None:
+        lora_kernel_config = get_lora_kernel_config("fused_lora_dyw_dsa")
+    else:
+        lora_kernel_config = config
+    triton_config = lora_kernel_config.to_triton_config()
+    
     grid = lambda META: (
         triton.cdiv(M, META["BLOCK_SIZE_M"]) * triton.cdiv(N, META["BLOCK_SIZE_N"]),
     )
@@ -276,6 +277,7 @@ def fused_lora_dyw_dsa(
         dx.stride(1),
         ENABLE_DROPOUT=dropout_p != 0,
         OUTPUT_DTYPE=torch_dtype_to_triton_dtype(dx.dtype),
+        **triton_config.all_kwargs(),
     )
     if compiled_kernel is not None and compiled_kernel.n_spills > 0:
         logger.warning(

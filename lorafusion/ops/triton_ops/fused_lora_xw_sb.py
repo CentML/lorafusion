@@ -9,7 +9,7 @@ import triton
 import triton.language as tl
 from loguru import logger
 
-from lorafusion.ops.triton_ops.config import get_kernel_configs
+from lorafusion.ops.triton_ops.config import LoRATritonConfig, get_lora_kernel_config
 from lorafusion.ops.triton_ops.utils import torch_dtype_to_triton_dtype
 from lorafusion.utils.benchmark import benchmark, set_warmup_and_number
 from lorafusion.utils.testing import assert_verbose_allclose_two_rounds
@@ -66,15 +66,6 @@ def torch_lora_xw_sb_ref(
     return result
 
 
-def fused_lora_xw_sb_kernel_get_configs() -> list[triton.Config]:
-    """Get the configurations for the fused LoRA xw + sb kernel."""
-    return get_kernel_configs("fused_lora_xw_sb")
-
-
-@triton.autotune(
-    configs=fused_lora_xw_sb_kernel_get_configs(),
-    key=["M", "N", "K", "OUTPUT_DTYPE"],
-)
 @triton.jit
 def fused_lora_xw_sb_kernel(
     x_ptr,
@@ -218,6 +209,8 @@ def fused_lora_xw_sb(
     b: torch.Tensor,
     alpha: float,
     bias: torch.Tensor | None = None,
+    *,
+    config: LoRATritonConfig | None = None,
 ) -> torch.Tensor:
     """Triton Fused LoRA xw + sb."""
     # Check constraints.
@@ -274,6 +267,14 @@ def fused_lora_xw_sb(
     grid = lambda META: (
         triton.cdiv(M, META["BLOCK_SIZE_M"]) * triton.cdiv(N, META["BLOCK_SIZE_N"]),
     )
+
+    # Get configs
+    if config is None:
+        lora_kernel_config = get_lora_kernel_config("fused_lora_xw_sb")
+    else:
+        lora_kernel_config = config
+    triton_config = lora_kernel_config.to_triton_config()
+
     compiled_kernel = fused_lora_xw_sb_kernel[grid](
         x,
         w,
@@ -299,6 +300,7 @@ def fused_lora_xw_sb(
         out.stride(0),
         out.stride(1),
         OUTPUT_DTYPE=torch_dtype_to_triton_dtype(out.dtype),
+        **triton_config.all_kwargs()
     )
     if compiled_kernel.n_spills > 0:
         logger.warning(

@@ -1,4 +1,4 @@
-# ruff: noqa: ANN001, N803, N806, E731
+# ruff: noqa: ANN001, N803, N806
 """Triton Fused LoRA dy @ w + ds @ a * dropout_scale using TMA."""
 
 from functools import partial
@@ -9,7 +9,7 @@ import triton
 import triton.language as tl
 from loguru import logger
 
-from lorafusion.ops.triton_ops.config import get_kernel_configs
+from lorafusion.ops.triton_ops.config import LoRATritonConfig, get_lora_kernel_config
 from lorafusion.ops.triton_ops.tma_utils import (
     TmaAutoTuneHelper,
     _compute_pid,
@@ -67,15 +67,6 @@ def torch_lora_dyw_dsa_ref(
     return dy @ w + torch.where(dropout_mask, ds @ a / (1 - dropout_p), 0.0)
 
 
-def fused_lora_dyw_dsa_tma_kernel_get_configs() -> list[triton.Config]:
-    """Get the configurations for the fused LoRA dyw + dsa kernel using TMA."""
-    return get_kernel_configs("fused_lora_dyw_dsa_tma")
-
-
-@triton.autotune(
-    configs=fused_lora_dyw_dsa_tma_kernel_get_configs(),
-    key=["M", "N", "K", "OUTPUT_DTYPE"],
-)
 @triton.jit
 def fused_lora_dyw_dsa_tma_kernel(
     dy_desc_ptr,
@@ -230,6 +221,8 @@ def fused_lora_dyw_dsa_tma(  # noqa: C901
     a: torch.Tensor,
     dropout_p: float,
     dropout_mask: torch.Tensor | None = None,
+    *,
+    config: LoRATritonConfig | None = None,
 ) -> torch.Tensor:
     """Triton Fused LoRA dyw + dsa using TMA.
 
@@ -299,6 +292,17 @@ def fused_lora_dyw_dsa_tma(  # noqa: C901
     # Allocates output.
     dx = torch.empty((M, N), device=dy.device, dtype=dy.dtype)
 
+    # Get configs
+    if config is None:
+        lora_kernel_config = get_lora_kernel_config("fused_lora_dyw_dsa_tma")
+    else:
+        lora_kernel_config = config
+    triton_config = lora_kernel_config.to_triton_config()
+    # Set TMA-specific config parameters
+    triton_config.kwargs["EPILOGUE_SUBTILE"] = False
+    triton_config.kwargs["LOOP_UNROLL_FACTOR"] = None
+    triton_config.kwargs["FLATTEN"] = False
+
     def grid(META: dict[str, Any]) -> int:
         desc_helper.fill_2d_tma_descriptor(
             "dy",
@@ -364,6 +368,7 @@ def fused_lora_dyw_dsa_tma(  # noqa: C901
         NUM_SMS=NUM_SMS,
         ENABLE_DROPOUT=dropout_p != 0,
         OUTPUT_DTYPE=torch_dtype_to_triton_dtype(dx.dtype),
+        **triton_config.all_kwargs(),
     )
     if compiled_kernel is not None and compiled_kernel.n_spills > 0:
         logger.warning(

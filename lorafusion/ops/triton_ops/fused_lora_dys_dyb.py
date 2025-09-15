@@ -1,5 +1,5 @@
-# ruff: noqa
 # ruff: noqa: ANN001, N803, N806, E731
+# ruff: noqa: ANN001, N803, N806, E731: ANN001, N803, N806, E731
 """Triton Fused LoRA dy @ s + dy @ b * dropout_scale."""
 
 from functools import partial
@@ -10,7 +10,7 @@ import triton
 import triton.language as tl
 from loguru import logger
 
-from lorafusion.ops.triton_ops.config import get_kernel_configs
+from lorafusion.ops.triton_ops.config import LoRATritonConfig, get_lora_kernel_config
 from lorafusion.ops.triton_ops.utils import torch_dtype_to_triton_dtype
 from lorafusion.utils.benchmark import benchmark, set_warmup_and_number
 
@@ -65,15 +65,6 @@ def torch_lora_dys_dyb_ref(
     return (dy.T @ s) * alpha, (dy @ b) * alpha
 
 
-def fused_lora_dys_dyb_kernel_get_configs() -> list[triton.Config]:
-    """Get the configurations for the fused LoRA dy @ s + dy @ b * alpha kernel."""
-    return get_kernel_configs("fused_lora_dys_dyb")
-
-
-@triton.autotune(
-    configs=fused_lora_dys_dyb_kernel_get_configs(),
-    key=["M", "K", "R"],
-)
 @triton.jit
 def fused_lora_dys_dyb_kernel(
     dy_ptr,
@@ -191,6 +182,8 @@ def fused_lora_dys_dyb(
     b: torch.Tensor,
     s: torch.Tensor,
     alpha: float,
+    *,
+    config: LoRATritonConfig | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Fused LoRA dy @ s + dy @ b * alpha.
 
@@ -202,6 +195,7 @@ def fused_lora_dys_dyb(
         b: LoRA weight tensor, shape [K, R]
         s: LoRA output tensor, shape [M, R]
         alpha: Scaling factor for the gradients
+        config: Optional LoRA Triton configuration. If None, uses default config.
 
     Returns:
         A tuple containing:
@@ -258,6 +252,13 @@ def fused_lora_dys_dyb(
     K = n_y
     R = r_s
 
+    # Get configs
+    if config is None:
+        lora_kernel_config = get_lora_kernel_config("fused_lora_dys_dyb")
+    else:
+        lora_kernel_config = config
+    triton_config = lora_kernel_config.to_triton_config()
+
     grid = lambda META: (
         triton.cdiv(M, META["BLOCK_SIZE_M"]) * triton.cdiv(K, META["BLOCK_SIZE_K"]),
     )
@@ -281,6 +282,7 @@ def fused_lora_dys_dyb(
         curr_db.stride(1),
         curr_ds.stride(0),
         curr_ds.stride(1),
+        **triton_config.all_kwargs(),
     )
 
     db = curr_db.to(dy.dtype)
