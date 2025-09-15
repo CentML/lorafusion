@@ -2,18 +2,18 @@
 
 from __future__ import annotations
 
-from functools import partial
 import json
 import time
 from dataclasses import asdict, dataclass, replace
+from functools import partial
 from itertools import product
 from pathlib import Path
-from typing import Any
 
 import click
 import torch
 from loguru import logger
 
+from lorafusion.ops.lora_v1 import HARDWARE_USE_TMA
 from lorafusion.ops.tests.test_fused_multi_lora_dys_dyb import (
     prepare_func as prepare_multi_lora_dys_dyb,
 )
@@ -36,12 +36,14 @@ from lorafusion.ops.triton_ops.fused_lora_dyw_dsa import (
 from lorafusion.ops.triton_ops.fused_lora_dyw_dsa import (
     prepare_func as prepare_dyw_dsa,
 )
+from lorafusion.ops.triton_ops.fused_lora_dyw_dsa_tma import fused_lora_dyw_dsa_tma
 from lorafusion.ops.triton_ops.fused_lora_xw_sb import (
     fused_lora_xw_sb,
 )
 from lorafusion.ops.triton_ops.fused_lora_xw_sb import (
     prepare_func as prepare_xw_sb,
 )
+from lorafusion.ops.triton_ops.fused_lora_xw_sb_tma import fused_lora_xw_sb_tma
 from lorafusion.ops.triton_ops.fused_multi_lora_dys_dyb import (
     fused_multi_lora_dys_dyb,
 )
@@ -53,9 +55,6 @@ from lorafusion.ops.triton_ops.fused_multi_lora_xw_sb import (
 )
 from lorafusion.utils.benchmark import benchmark, set_warmup_and_number
 from lorafusion.utils.common import get_device_short_name
-from lorafusion.ops.lora_v1 import HARDWARE_USE_TMA
-from lorafusion.ops.triton_ops.fused_lora_dyw_dsa_tma import fused_lora_dyw_dsa_tma
-from lorafusion.ops.triton_ops.fused_lora_xw_sb_tma import fused_lora_xw_sb_tma
 
 
 @dataclass
@@ -552,6 +551,7 @@ def main(
     logger.info("TUNING SUMMARY")
     logger.info("=" * 80)
 
+    logger.info(f"Device short name: {get_device_short_name()}")
     for kernel_name, result in results.items():
         logger.info(f"{kernel_name}: {result.time_ms:.3f}ms")
         if result.torch_gemm_ms is not None:
