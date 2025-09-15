@@ -411,13 +411,13 @@ class KernelTuner:
                     "kernel_func": fused_multi_lora_xw_sb,
                     "prepare_func": _multi_lora_prep_partial(prepare_multi_lora_xw_sb),
                 },
-                "fused_multi_lora_dys_dyb": {
-                    "kernel_func": fused_multi_lora_dys_dyb,
-                    "prepare_func": _multi_lora_prep_partial(prepare_multi_lora_dys_dyb),
-                },
                 "fused_multi_lora_dyw_dsa": {
                     "kernel_func": fused_multi_lora_dyw_dsa,
                     "prepare_func": _multi_lora_prep_partial(prepare_multi_lora_dyw_dsa),
+                },
+                "fused_multi_lora_dys_dyb": {
+                    "kernel_func": fused_multi_lora_dys_dyb,
+                    "prepare_func": _multi_lora_prep_partial(prepare_multi_lora_dys_dyb),
                 },
             }
 
