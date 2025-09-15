@@ -41,6 +41,7 @@ from lorafusion.ops.multi_lora import (
     init_multi_lora_manager,
     prepare_multi_lora_batch_info,
 )
+from lorafusion.ops.triton_ops.config import get_lora_kernel_config
 from lorafusion.patch.patch_lora import apply_lora
 from lorafusion.patch.patch_transformers import merge_qkv_proj
 from lorafusion.pipeline_parallel.pipe_module import get_pipeline_stage_layer_indices
@@ -1328,7 +1329,7 @@ class MockMultiLoRADataProvider:
             lora_rank_list=lora_rank_list,
             dropout_p_list=dropout_p_list,
             alpha_list=alpha_list,
-            block_size_m=128,  # Default block size, adjust if needed
+            block_size_m=get_lora_kernel_config("fused_multi_lora_block_size_m"),
             micro_batch_info=micro_batch_info,
         )
 

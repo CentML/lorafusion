@@ -15,6 +15,8 @@ import pulp
 from loguru import logger
 from tqdm import tqdm
 
+from lorafusion.ops.triton_ops.config import get_lora_kernel_config
+
 ZERO_POINT_FIVE = 0.5
 M = 1000000
 
@@ -1992,7 +1994,7 @@ if __name__ == "__main__":
             groups,
             num_global_batches_per_adapter=1,
             capacity=4096,
-            adapter_padding_multiple=128,
+            adapter_padding_multiple=get_lora_kernel_config("fused_multi_lora_block_size_m"),
             verbose=verbose,
             time_limit=0.5,
         )

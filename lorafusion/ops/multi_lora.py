@@ -13,10 +13,10 @@ from megatron.core import parallel_state
 
 from lorafusion.ops.triton_ops.blocked_dropout import blocked_seeded_dropout
 from lorafusion.ops.triton_ops.dropout import seeded_dropout
-from lorafusion.ops.triton_ops.experimental.fused_multi_lora_dyw_dsa import (
+from lorafusion.ops.triton_ops.fused_multi_lora_dyw_dsa import (
     fused_multi_lora_dyw_dsa,
 )
-from lorafusion.ops.triton_ops.experimental.fused_multi_lora_xw_sb import (
+from lorafusion.ops.triton_ops.fused_multi_lora_xw_sb import (
     construct_s_and_b_ptrs_list,
     fused_multi_lora_xw_sb,
 )
@@ -34,7 +34,7 @@ if TYPE_CHECKING:
 
 multi_lora_manager: MultiLoRAManager | None = None
 THREE_DIM = 3
-MULTI_LORA_BLOCK_SIZE = 128
+MULTI_LORA_BLOCK_SIZE = 64
 
 
 def init_multi_lora_manager(

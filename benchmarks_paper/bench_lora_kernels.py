@@ -15,6 +15,7 @@ from torch import nn
 from torch.cuda import nvtx
 
 from lorafusion.ops.lora_v1 import fused_linear_lora as fused_linear_lora_v1
+from lorafusion.ops.triton_ops.config import get_lora_kernel_config
 from lorafusion.utils.benchmark import (
     benchmark,
     format_time,
@@ -516,7 +517,7 @@ class MultiLoRAFamilyBenchmark(BenchmarkBase):
         ]
 
         # Constants from multi_lora.py
-        self.block_size_m = 128  # MULTI_LORA_BLOCK_SIZE
+        self.block_size_m = get_lora_kernel_config("fused_multi_lora_block_size_m")
 
     def prepare_inputs(self) -> dict[str, Any]:
         """Prepare the inputs for the benchmark.

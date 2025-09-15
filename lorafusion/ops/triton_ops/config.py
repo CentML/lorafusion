@@ -66,6 +66,12 @@ class HardwareConfig:
     # Fused LoRA DYS + DYB configurations
     fused_lora_dys_dyb: LoRATritonConfig
 
+    # Multi-LoRA configurations
+    fused_multi_lora_block_size_m: int
+    fused_multi_lora_xw_sb: LoRATritonConfig
+    fused_multi_lora_dyw_dsa: LoRATritonConfig
+    fused_multi_lora_dys_dyb: LoRATritonConfig
+
 
 # Hardware-specific configurations
 # These are optimized configurations for different GPU architectures
@@ -74,7 +80,11 @@ H100_CONFIG = HardwareConfig(
     fused_lora_xw_sb_tma=LoRATritonConfig(128, 256, 64, 8, 3, 8),
     fused_lora_dyw_dsa=LoRATritonConfig(128, 256, 64, 8, 3, 8),
     fused_lora_dyw_dsa_tma=LoRATritonConfig(128, 256, 64, 8, 2, 8),
-    fused_lora_dys_dyb=LoRATritonConfig(128, None, 64, 8, 4, 8),
+    fused_lora_dys_dyb=LoRATritonConfig(128, None, 128, 8, 5, 8),
+    fused_multi_lora_block_size_m=128,
+    fused_multi_lora_xw_sb=LoRATritonConfig(128, 256, 64, 8, 4, 8),
+    fused_multi_lora_dyw_dsa=LoRATritonConfig(128, 256, 64, 8, 4, 8),
+    fused_multi_lora_dys_dyb=LoRATritonConfig(128, None, 128, 8, 5, 8),
 )
 
 RTX3090_CONFIG = HardwareConfig(
@@ -83,6 +93,10 @@ RTX3090_CONFIG = HardwareConfig(
     fused_lora_dyw_dsa=LoRATritonConfig(64, 128, 32, 8, 4, 4),
     fused_lora_dyw_dsa_tma=None,
     fused_lora_dys_dyb=LoRATritonConfig(128, None, 128, 8, 4, 8),
+    fused_multi_lora_block_size_m=64,
+    fused_multi_lora_xw_sb=LoRATritonConfig(64, 128, 32, 8, 4, 4),
+    fused_multi_lora_dyw_dsa=LoRATritonConfig(64, 128, 32, 8, 4, 4),
+    fused_multi_lora_dys_dyb=LoRATritonConfig(64, None, 128, 8, 3, 8),
 )
 
 HARDWARE_CONFIGS: dict[str, HardwareConfig] = {
@@ -104,7 +118,7 @@ def get_hardware_config() -> HardwareConfig:
     return HARDWARE_CONFIGS[gpu_name]
 
 
-def get_lora_kernel_config(kernel_name: str) -> LoRATritonConfig:
+def get_lora_kernel_config(kernel_name: str) -> LoRATritonConfig | int | None:
     """Get the configuration for a specific kernel."""
     config = get_hardware_config()
     return getattr(config, kernel_name)

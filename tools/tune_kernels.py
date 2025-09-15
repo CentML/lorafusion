@@ -2,17 +2,28 @@
 
 from __future__ import annotations
 
+from functools import partial
 import json
 import time
 from dataclasses import asdict, dataclass, replace
 from itertools import product
 from pathlib import Path
+from typing import Any
 
 import click
 import torch
 from loguru import logger
 
-from lorafusion.ops.triton_ops.config import LoRATritonConfig, get_gpu_name
+from lorafusion.ops.tests.test_fused_multi_lora_dys_dyb import (
+    prepare_func as prepare_multi_lora_dys_dyb,
+)
+from lorafusion.ops.tests.test_fused_multi_lora_dyw_dsa import (
+    prepare_func as prepare_multi_lora_dyw_dsa,
+)
+from lorafusion.ops.tests.test_fused_multi_lora_xw_sb import (
+    prepare_func as prepare_multi_lora_xw_sb,
+)
+from lorafusion.ops.triton_ops.config import LoRATritonConfig
 from lorafusion.ops.triton_ops.fused_lora_dys_dyb import (
     fused_lora_dys_dyb,
 )
@@ -25,16 +36,26 @@ from lorafusion.ops.triton_ops.fused_lora_dyw_dsa import (
 from lorafusion.ops.triton_ops.fused_lora_dyw_dsa import (
     prepare_func as prepare_dyw_dsa,
 )
-from lorafusion.ops.triton_ops.fused_lora_dyw_dsa_tma import fused_lora_dyw_dsa_tma
 from lorafusion.ops.triton_ops.fused_lora_xw_sb import (
     fused_lora_xw_sb,
 )
 from lorafusion.ops.triton_ops.fused_lora_xw_sb import (
     prepare_func as prepare_xw_sb,
 )
-from lorafusion.ops.triton_ops.fused_lora_xw_sb_tma import fused_lora_xw_sb_tma
+from lorafusion.ops.triton_ops.fused_multi_lora_dys_dyb import (
+    fused_multi_lora_dys_dyb,
+)
+from lorafusion.ops.triton_ops.fused_multi_lora_dyw_dsa import (
+    fused_multi_lora_dyw_dsa,
+)
+from lorafusion.ops.triton_ops.fused_multi_lora_xw_sb import (
+    fused_multi_lora_xw_sb,
+)
 from lorafusion.utils.benchmark import benchmark, set_warmup_and_number
+from lorafusion.utils.common import get_device_short_name
 from lorafusion.ops.lora_v1 import HARDWARE_USE_TMA
+from lorafusion.ops.triton_ops.fused_lora_dyw_dsa_tma import fused_lora_dyw_dsa_tma
+from lorafusion.ops.triton_ops.fused_lora_xw_sb_tma import fused_lora_xw_sb_tma
 
 
 @dataclass
@@ -156,7 +177,7 @@ class KernelTuner:
         time_result = benchmark(
             lambda x, w: x @ w.T,
             prepare_func=prepare_func,
-            use_cuda_graph=True,
+            use_cuda_graph=False,
             use_cuda_event=True,
         )
 
@@ -185,15 +206,16 @@ class KernelTuner:
         try:
             # Create a wrapper function that passes the config to the kernel
             def kernel_with_config(*args, **kwargs) -> torch.Tensor:
-                # Add config parameter to kwargs
-                kwargs["config"] = config
+                # Add config parameter to kwargs only if config is not None
+                if config is not None:
+                    kwargs["config"] = config
                 return kernel_func(*args, **kwargs)
 
             # Run benchmark with the specified config
             time_result = benchmark(
                 kernel_with_config,
                 prepare_func=prepare_func,
-                use_cuda_graph=True,
+                use_cuda_graph=False,
                 use_cuda_event=True,
             )
 
@@ -208,6 +230,7 @@ class KernelTuner:
             logger.warning(
                 f"Failed to benchmark {kernel_name} with config {config}: {e}"
             )
+            # raise e
             return BenchmarkResult(
                 kernel_name=kernel_name,
                 config=config,
@@ -224,6 +247,7 @@ class KernelTuner:
         n: int,
         k: int,
         dtype: torch.dtype,
+        block_size_m: int | None = None,
     ) -> BenchmarkResult:
         """Tune a single kernel by testing different configurations.
 
@@ -235,6 +259,7 @@ class KernelTuner:
             n: Output dimension.
             k: Input dimension.
             dtype: Data type.
+            block_size_m: Block size for the M dimension.
 
         Returns:
             Best benchmark result.
@@ -254,6 +279,13 @@ class KernelTuner:
 
         for i, config in enumerate(candidates):
             logger.info(f"Testing config {i + 1}/{len(candidates)}: {config}")
+
+            if block_size_m is not None and config.block_size_m != block_size_m:
+                logger.info(
+                    f" > Skipping config {config} because it has block size m "
+                    f"{config.block_size_m} != {block_size_m}"
+                )
+                continue
 
             result = self.benchmark_kernel_with_config(
                 kernel_func, prepare_func, config, kernel_name, torch_gemm_ms
@@ -277,6 +309,8 @@ class KernelTuner:
         r: int = 16,
         alpha: float = 16.0,
         dtype: torch.dtype = torch.bfloat16,
+        *,
+        include_multi_lora: bool = True,
     ) -> dict[str, BenchmarkResult]:
         """Tune all kernels by testing different configurations.
 
@@ -287,6 +321,7 @@ class KernelTuner:
             r: LoRA rank.
             alpha: LoRA alpha.
             dtype: Data type.
+            include_multi_lora: Whether to include multi-LoRA kernels.
 
         Returns:
             Dictionary of best results for each kernel.
@@ -349,6 +384,60 @@ class KernelTuner:
                 dtype,
             )
 
+        # Tune multi-LoRA kernels if requested
+        if include_multi_lora:
+            block_size_m = results["fused_lora_xw_sb"].config.block_size_m
+            seq_len_list = [2048, 2048]
+            lora_idx_list = [0, 1]
+            lora_rank_list = [16, 16]
+            dropout_p_list = [0.1, 0.1]
+            alpha_list = [16.0, 16.0]
+            n = k = 4096
+            def _multi_lora_prep_partial(prepare_func: callable) -> callable:
+                return partial(
+                    prepare_func,
+                    seq_len_list=seq_len_list,
+                    lora_idx_list=lora_idx_list,
+                    lora_rank_list=lora_rank_list,
+                    dropout_p_list=dropout_p_list,
+                    alpha_list=alpha_list,
+                    n=n,
+                    k=k,
+                    block_size_m=block_size_m,
+                    dtype=dtype,
+                )
+
+            multi_lora_kernel_configs = {
+                "fused_multi_lora_xw_sb": {
+                    "kernel_func": fused_multi_lora_xw_sb,
+                    "prepare_func": _multi_lora_prep_partial(prepare_multi_lora_xw_sb),
+                },
+                "fused_multi_lora_dys_dyb": {
+                    "kernel_func": fused_multi_lora_dys_dyb,
+                    "prepare_func": _multi_lora_prep_partial(prepare_multi_lora_dys_dyb),
+                },
+                "fused_multi_lora_dyw_dsa": {
+                    "kernel_func": fused_multi_lora_dyw_dsa,
+                    "prepare_func": _multi_lora_prep_partial(prepare_multi_lora_dyw_dsa),
+                },
+            }
+
+            for kernel_name, config in multi_lora_kernel_configs.items():
+                logger.info("=" * 80)
+                logger.info(f"TUNING {kernel_name.upper()}")
+                logger.info("=" * 80)
+
+                results[kernel_name] = self.tune_kernel(
+                    kernel_name,
+                    config["kernel_func"],
+                    config["prepare_func"],
+                    m,
+                    n,
+                    k,
+                    dtype,
+                    block_size_m=block_size_m,
+                )
+
         return results
 
     def save_results(
@@ -377,7 +466,7 @@ class KernelTuner:
 
         # Add metadata
         metadata = {
-            "gpu_name": get_gpu_name(),
+            "gpu_name": get_device_short_name(),
             "timestamp": time.time(),
             "tuning_parameters": {
                 "warmup": self.warmup,
@@ -411,6 +500,12 @@ class KernelTuner:
     default="./results/tuning_results.json",
     help="Output file path.",
 )
+@click.option(
+    "--include-multi-lora",
+    is_flag=True,
+    default=True,
+    help="Include multi-LoRA kernels in tuning.",
+)
 def main(
     m: int,
     n: int,
@@ -421,6 +516,8 @@ def main(
     warmup: int,
     number: int,
     output: str,
+    *,
+    include_multi_lora: bool,
 ) -> None:
     """Tune Triton kernel configurations."""
     # Convert dtype string to torch dtype
@@ -431,14 +528,22 @@ def main(
     }
     torch_dtype = dtype_map.get(dtype, torch.bfloat16)
 
-    logger.info(f"Starting kernel tuning on {get_gpu_name()}")
+    logger.info(f"Starting kernel tuning on {get_device_short_name()}")
     logger.info(f"Dimensions: M={m}, N={n}, K={k}, R={r}")
     logger.info(f"Data type: {dtype}")
     logger.info(f"Warmup: {warmup}, Number: {number}")
 
     tuner = KernelTuner(warmup=warmup, number=number)
 
-    results = tuner.tune_all_kernels(m=m, n=n, k=k, r=r, alpha=alpha, dtype=torch_dtype)
+    results = tuner.tune_all_kernels(
+        m=m,
+        n=n,
+        k=k,
+        r=r,
+        alpha=alpha,
+        dtype=torch_dtype,
+        include_multi_lora=include_multi_lora,
+    )
 
     tuner.save_results(results, output)
 
