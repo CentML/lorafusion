@@ -92,11 +92,11 @@ H100_CONFIG = HardwareConfig(
 A100_80GB_PCIE_CONFIG = HardwareConfig(
     fused_lora_xw_sb=LoRATritonConfig(128, 128, 32, 8, 4, 4),
     fused_lora_xw_sb_tma=None,
-    fused_lora_dyw_dsa=LoRATritonConfig(128, 256, 64, 8, 4, 8),
+    fused_lora_dyw_dsa=LoRATritonConfig(128, 128, 64, 8, 4, 8),
     fused_lora_dyw_dsa_tma=None,
-    fused_lora_dys_dyb=LoRATritonConfig(128, None, 128, 8, 4, 8),
+    fused_lora_dys_dyb=LoRATritonConfig(128, None, 128, 8, 5, 8),
     fused_multi_lora_block_size_m=128,
-    fused_multi_lora_xw_sb=LoRATritonConfig(128, 256, 64, 8, 4, 8),
+    fused_multi_lora_xw_sb=LoRATritonConfig(128, 128, 64, 8, 4, 8),
     fused_multi_lora_dyw_dsa=LoRATritonConfig(128, 128, 32, 8, 4, 4),
     fused_multi_lora_dys_dyb=LoRATritonConfig(128, None, 128, 8, 5, 8),
 )
