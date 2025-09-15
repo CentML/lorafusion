@@ -128,6 +128,7 @@ RTX3090_CONFIG = HardwareConfig(
 HARDWARE_CONFIGS: dict[str, HardwareConfig] = {
     "h100-80gb-hbm3": H100_CONFIG,
     "a100-80gb-pcie": A100_80GB_PCIE_CONFIG,
+    "a100-sxm4-80gb": A100_SXM4_80GB_CONFIG,
     "geforce-rtx-3090": RTX3090_CONFIG,
 }
 
