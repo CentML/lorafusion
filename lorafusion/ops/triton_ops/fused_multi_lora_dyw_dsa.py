@@ -1,23 +1,13 @@
 # ruff: noqa: ANN001, N803, N806, E731
 """Triton Fused LoRA dy @ w + ds @ a * dropout_scale."""
 
-from functools import partial
-from typing import Any
-
 import torch
 import triton
 import triton.language as tl
 from loguru import logger
 
 from lorafusion.ops.triton_ops.config import LoRATritonConfig, get_lora_kernel_config
-from lorafusion.ops.triton_ops.fused_multi_lora_xw_sb import (
-    get_multi_lora_global_info,
-    prepare_inputs_for_multi_lora,
-    set_multi_lora_global_info,
-)
 from lorafusion.ops.triton_ops.utils import torch_dtype_to_triton_dtype
-from lorafusion.utils.benchmark import benchmark, set_warmup_and_number
-from lorafusion.utils.testing import assert_verbose_allclose_two_rounds
 
 MAX_NUM_BLOCK_M_SIZE = 128  # 8192 tokens
 GLOBAL_DS_PTR_LIST = None
@@ -60,6 +50,7 @@ def construct_ds_and_a_ptrs_list(
         ds_list,
         a_list,
     )
+
 
 @triton.jit
 def fused_multi_lora_dyw_dsa_kernel(
@@ -304,4 +295,3 @@ def fused_multi_lora_dyw_dsa(
         )
         logger.warning(f"Compiled kernel.metadata: {compiled_kernel.metadata}")
     return dx
-

@@ -400,14 +400,9 @@ def verify_kernel_correctness(
     alpha: float = 16.0,
     dtype: torch.dtype = torch.bfloat16,
 ) -> None:
-    """Verify that the kernel produces correct results for all tested dimensions.
-
-    This is particularly important when M is not divisible by 128.
-    """
+    """Verify that the kernel produces correct results for all tested dimensions."""
     for m in m_values:
-        logger.info(
-            f"Verifying kernel correctness for m={m} (with BLOCK_SIZE_M=128)..."
-        )
+        logger.info(f"Verifying kernel correctness for m={m}...")
 
         # Test without bias
         inputs_no_bias = prepare_func(
