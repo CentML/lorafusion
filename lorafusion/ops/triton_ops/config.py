@@ -8,6 +8,8 @@ import triton
 
 from lorafusion.utils.common import get_device_short_name
 
+KERNEL_SPILL_VERBOSE = False
+
 
 @dataclass(frozen=True)
 class LoRATritonConfig:

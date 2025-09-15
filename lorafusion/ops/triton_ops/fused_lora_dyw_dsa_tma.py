@@ -9,7 +9,11 @@ import triton
 import triton.language as tl
 from loguru import logger
 
-from lorafusion.ops.triton_ops.config import LoRATritonConfig, get_lora_kernel_config
+from lorafusion.ops.triton_ops.config import (
+    LoRATritonConfig,
+    get_lora_kernel_config,
+    KERNEL_SPILL_VERBOSE,
+)
 from lorafusion.ops.triton_ops.tma_utils import (
     TmaAutoTuneHelper,
     _compute_pid,
@@ -370,7 +374,11 @@ def fused_lora_dyw_dsa_tma(  # noqa: C901
         OUTPUT_DTYPE=torch_dtype_to_triton_dtype(dx.dtype),
         **triton_config.all_kwargs(),
     )
-    if compiled_kernel is not None and compiled_kernel.n_spills > 0:
+    if (
+        KERNEL_SPILL_VERBOSE
+        and compiled_kernel is not None
+        and compiled_kernel.n_spills > 0
+    ):
         logger.warning(
             f"Compiled kernel: {compiled_kernel}, "
             f"n_regs: {compiled_kernel.n_regs}, "

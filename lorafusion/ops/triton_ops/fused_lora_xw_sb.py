@@ -9,7 +9,11 @@ import triton
 import triton.language as tl
 from loguru import logger
 
-from lorafusion.ops.triton_ops.config import LoRATritonConfig, get_lora_kernel_config
+from lorafusion.ops.triton_ops.config import (
+    KERNEL_SPILL_VERBOSE,
+    LoRATritonConfig,
+    get_lora_kernel_config,
+)
 from lorafusion.ops.triton_ops.utils import torch_dtype_to_triton_dtype
 from lorafusion.utils.benchmark import benchmark, set_warmup_and_number
 from lorafusion.utils.testing import assert_verbose_allclose_two_rounds
@@ -300,9 +304,9 @@ def fused_lora_xw_sb(
         out.stride(0),
         out.stride(1),
         OUTPUT_DTYPE=torch_dtype_to_triton_dtype(out.dtype),
-        **triton_config.all_kwargs()
+        **triton_config.all_kwargs(),
     )
-    if compiled_kernel.n_spills > 0:
+    if KERNEL_SPILL_VERBOSE and compiled_kernel.n_spills > 0:
         logger.warning(
             f"Compiled kernel: {compiled_kernel}, "
             f"n_regs: {compiled_kernel.n_regs}, "
@@ -322,9 +326,7 @@ def verify_kernel_correctness(
 ) -> None:
     """Verify that the kernel produces correct results for all tested dimensions."""
     for m in m_values:
-        logger.info(
-            f"Verifying kernel correctness for m={m}..."
-        )
+        logger.info(f"Verifying kernel correctness for m={m}...")
 
         # Test without bias
         inputs_no_bias = prepare_func(

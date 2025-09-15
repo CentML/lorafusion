@@ -6,7 +6,11 @@ import triton
 import triton.language as tl
 from loguru import logger
 
-from lorafusion.ops.triton_ops.config import LoRATritonConfig, get_lora_kernel_config
+from lorafusion.ops.triton_ops.config import (
+    KERNEL_SPILL_VERBOSE,
+    LoRATritonConfig,
+    get_lora_kernel_config,
+)
 from lorafusion.ops.triton_ops.utils import torch_dtype_to_triton_dtype
 
 MAX_NUM_BLOCK_M_SIZE = 192  # max: MAX_NUM_BLOCK_M_SIZE * BLOCK_SIZE_M tokens
@@ -306,7 +310,7 @@ def fused_multi_lora_dys_dyb(
     db_list = [db.to(dy.dtype) for db in db_list]
     ds_list = [ds.to(dy.dtype) for ds in ds_list]
 
-    if compiled_kernel.n_spills > 0:
+    if KERNEL_SPILL_VERBOSE and compiled_kernel.n_spills > 0:
         logger.warning(
             f"Compiled kernel: {compiled_kernel}, "
             f"n_regs: {compiled_kernel.n_regs}, "
