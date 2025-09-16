@@ -7,7 +7,9 @@ from typing import TYPE_CHECKING, Any
 
 import matplotlib as mpl
 import numpy as np
+from loguru import logger
 from matplotlib import pyplot as plt
+
 
 # Fix font type for PDF and PS files, which is required by the ACM/IEEE templates.
 mpl.rcParams["pdf.fonttype"] = 42
@@ -323,8 +325,7 @@ class GroupedBarChartArguments:
         ]
 
         if not flat_data:
-            msg = "No valid numeric data to set y-axis limit"
-            raise ValueError(msg)
+            logger.warning("No valid numeric data to set y-axis limit")
 
     def validate(self) -> None:
         """Validate the arguments."""
