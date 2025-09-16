@@ -35,7 +35,7 @@ if TYPE_CHECKING:
 
 multi_lora_manager: MultiLoRAManager | None = None
 THREE_DIM = 3
-MULTI_LORA_BLOCK_SIZE = 64
+MULTI_LORA_BLOCK_SIZE = get_lora_kernel_config("fused_multi_lora_block_size_m")
 
 
 def init_multi_lora_manager(
