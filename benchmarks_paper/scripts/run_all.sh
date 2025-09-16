@@ -8,12 +8,13 @@ cd ${SCRIPT_DIR}/..
 
 BENCH_MODE="${1:-"all"}"
 bench_main=False
+bench_main_single_gpu=False
 bench_kernel=False
 bench_layer=False
 
-if [ "$BENCH_MODE" != "all" ] && [ "$BENCH_MODE" != "main" ] && [ "$BENCH_MODE" != "kernel" ] && [ "$BENCH_MODE" != "layer" ]; then
+if [ "$BENCH_MODE" != "all" ] && [ "$BENCH_MODE" != "main" ] && [ "$BENCH_MODE" != "kernel" ] && [ "$BENCH_MODE" != "layer" ] && [ "$BENCH_MODE" != "all_single_gpu" ]; then
     echo "Invalid benchmark mode: $BENCH_MODE"
-    echo "Valid modes: all, main, kernel, layer"
+    echo "Valid modes: all, main, kernel, layer, all_single_gpu"
     exit 1
 fi
 
@@ -33,6 +34,12 @@ fi
 
 if [ "$BENCH_MODE" == "layer" ]; then
     bench_layer=True
+fi
+
+if [ "$BENCH_MODE" == "all_single_gpu" ]; then
+    bench_layer=True
+    bench_kernel=True
+    bench_main_single_gpu=True
 fi
 
 # ===============================
@@ -86,6 +93,23 @@ if [ "$bench_main" == True ]; then
     bash scripts/main/3_3_70b_4h100_wikisum.sh
     bash scripts/main/3_4_70b_4h100_mix.sh
     bash scripts/main/3_5_70b_4h100_het.sh
+
+    # Parse the results
+    # The results are saved to parsed_results.json
+    python parse_main_results.py
+
+    # Generate the plots
+    # The plots are saved under results/
+    python plots/evaluation-fig-1-end-to-end.py
+fi
+
+if [ "$bench_main_single_gpu" == True ]; then
+    # This takes ~35 mins to run - only single GPU configurations
+    bash scripts/main/1_1_8b_1h100_xsum.sh
+    bash scripts/main/1_2_8b_1h100_cnn_dailymail.sh
+    bash scripts/main/1_3_8b_1h100_wikisum.sh
+    bash scripts/main/1_4_8b_1h100_mix.sh
+    bash scripts/main/1_5_8b_1h100_het.sh
 
     # Parse the results
     # The results are saved to parsed_results.json

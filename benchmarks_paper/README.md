@@ -21,9 +21,6 @@ We also provide instructions to set up the kernel and layer benchmarks for other
 ### Software dependencies
 You need Conda to set up the environment. The environment includes CUDA 12.6, PyTorch v2.6.0, megatron-core v0.11.0, and Triton v3.2.0.
 
-### Benchmarks
-None
-
 ## Setup
 
 1. **Clone the GitHub repository:**
@@ -76,7 +73,7 @@ None
 
 2. **Run the experiments:**
    ```bash
-   bash scripts/run_all.sh
+   bash scripts/run_all.sh all
    ```
    
    a. This runs all the main experiments and kernel performance tests. It takes about 4 hours.
@@ -89,13 +86,12 @@ None
 
 ### Single GPU Kernel and Layer Benchmarks
 
-If you only have 1 GPU, you can run the kernel and layer benchmarks by running:
+If you only have 1 GPU, you can run the single GPU benchmark, and kernel and layer benchmarks by running:
 ```bash
-bash scripts/run_all.sh kernel
-bash scripts/run_all.sh layer
+bash scripts/run_all.sh all_single_gpu
 ```
 
-Check the results in the `results` directory. The script automatically creates plots like those in Figure 5, Figure 6, and potentially Figure 7 (if you have NCU profiling enabled).
+Check the results in the `results` directory. The script automatically creates plots like those in sub figure 1 of Figure 1, Figure 5, Figure 6, and potentially Figure 7 (if you have NCU profiling enabled).
 
 ## Notes on Reusability
 
