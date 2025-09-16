@@ -8,6 +8,7 @@ import triton
 import triton.language as tl
 from loguru import logger
 
+from lorafusion.ops.triton_ops.config import KERNEL_SPILL_VERBOSE
 from lorafusion.ops.triton_ops.dropout import seeded_dropout
 from lorafusion.ops.triton_ops.utils import torch_dtype_to_triton_dtype
 from lorafusion.utils.benchmark import benchmark, set_warmup_and_number
@@ -335,7 +336,11 @@ def fused_dropout_matmul(
         STORE_MASKED_SCALED_X=store_masked_scaled_x,
         OUTPUT_DTYPE=torch_dtype_to_triton_dtype(out.dtype),
     )
-    if compiled_kernel is not None and compiled_kernel.n_spills > 0:
+    if (
+        KERNEL_SPILL_VERBOSE
+        and compiled_kernel is not None
+        and compiled_kernel.n_spills > 0
+    ):
         logger.warning(
             f"Compiled kernel: {compiled_kernel}, "
             f"n_regs: {compiled_kernel.n_regs}, "

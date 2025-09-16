@@ -212,6 +212,11 @@ if __name__ == "__main__":
             logger.error("Please either:")
             logger.error("1. Set USE_DEMO_DATA = True to use demo data, or")
             logger.error("2. Ensure NCU reports are available in ncu_reports/")
+            logger.error(
+                "Note: It is also possible that NVIDIA GPU Performance Counters "
+                "permissions are not set correctly. Please follow the error messages "
+                "to set the permissions correctly."
+            )
             raise
 
     draw_figure(data)

@@ -9,6 +9,7 @@ import triton
 import triton.language as tl
 from loguru import logger
 
+from lorafusion.ops.triton_ops.config import KERNEL_SPILL_VERBOSE
 from lorafusion.ops.triton_ops.fused_dropout_matmul import rand4x_kernel
 from lorafusion.ops.triton_ops.utils import torch_dtype_to_triton_dtype
 from lorafusion.utils.benchmark import benchmark, set_warmup_and_number
@@ -85,8 +86,7 @@ def torch_func(
         # Apply dropout to the input before LoRA computation
         x_dropped = torch.nn.functional.dropout(x, p=dropout_p, training=True)
         return x @ w + x_dropped @ a @ b
-    else:
-        return x @ w + x @ a @ b
+    return x @ w + x @ a @ b
 
 
 def lora_matmul_get_configs() -> list[triton.Config]:
@@ -450,7 +450,11 @@ def lora_matmul(
         STORE_MASKED_SCALED_X=store_masked_scaled_x,
         OUTPUT_DTYPE=torch_dtype_to_triton_dtype(out.dtype),
     )
-    if compiled_kernel is not None and compiled_kernel.n_spills > 0:
+    if (
+        KERNEL_SPILL_VERBOSE
+        and compiled_kernel is not None
+        and compiled_kernel.n_spills > 0
+    ):
         logger.warning(
             f"Compiled kernel: {compiled_kernel}, "
             f"n_regs: {compiled_kernel.n_regs}, "

@@ -15,9 +15,12 @@ import pulp
 from loguru import logger
 from tqdm import tqdm
 
+from lorafusion.ops.triton_ops.config import get_lora_kernel_config
+
 ZERO_POINT_FIVE = 0.5
 M = 1000000
 
+ADAPTER_PADDING_MULTIPLE = get_lora_kernel_config("fused_multi_lora_block_size_m")
 
 def check_adapter_global_batch_idx_consistency(
     list_of_micro_batch_infos: list[MicroBatchInfo],
@@ -132,7 +135,7 @@ class MicroBatchInfo:
         raw_data_indices: list[tuple[int, int]],
         local_batch_data: list[list[int]],
         max_microbatch_size: int,
-        adapter_padding_multiple: int = 128,
+        adapter_padding_multiple: int = ADAPTER_PADDING_MULTIPLE,
         global_batch_idx: int | None = None,
         adapter_mapping: list[int] | None = None,
     ) -> MicroBatchInfo:
@@ -216,7 +219,7 @@ class MicroBatchInfo:
 
         # Get adapter padding multiple from any existing padded adapter tokens
         # This assumes all adapters use the same padding multiple
-        adapter_padding_multiple = 128  # Default value
+        adapter_padding_multiple = ADAPTER_PADDING_MULTIPLE  # Default value
 
         # Sort samples by size (smallest first to maximize how many we can merge)
         sorted_samples = sorted(
@@ -1059,7 +1062,7 @@ def packing_data_to_microbatches_micro_milp(  # noqa: C901
     num_pipeline_stages: int,
     num_global_batches_per_adapter: int | None = None,
     capacity: int = 4096,
-    adapter_padding_multiple: int = 128,
+    adapter_padding_multiple: int = ADAPTER_PADDING_MULTIPLE,
     *,
     time_limit: int = 600,
     verbose: bool = False,
@@ -1218,7 +1221,7 @@ def packing_data_to_microbatches_micro_milp_with_multiprocessing(  # noqa: C901
     num_global_batches_per_adapter: int,
     num_pipeline_stages: int,
     capacity: int = 4096,
-    adapter_padding_multiple: int = 128,
+    adapter_padding_multiple: int = ADAPTER_PADDING_MULTIPLE,
     *,
     time_limit: int = 600,
     verbose: bool = False,
@@ -1361,7 +1364,7 @@ def greedy_pack_decide_bins(
     data: list[list[int]],
     target_microbatch_size: int,
     samples: list[tuple[int, int, int]] | None = None,
-    adapter_padding_multiple: int = 128,
+    adapter_padding_multiple: int = ADAPTER_PADDING_MULTIPLE,
 ) -> tuple[
     int, list[list[tuple[int, int]]], list[list[int]], list[list[tuple[int, int]]], int
 ]:
@@ -1435,7 +1438,7 @@ def greedy_pack_decide_bins(
 def solve_micro_milp_lexicographic(  # noqa: PLR0915
     data: list[list[int]],
     target_microbatch_size: int,
-    adapter_padding_multiple: int = 128,
+    adapter_padding_multiple: int = ADAPTER_PADDING_MULTIPLE,
     *,
     verbose: bool = False,
     time_limit: int = 600,
@@ -1576,7 +1579,7 @@ def solve_micro_milp_min_bins(  # noqa: C901, PLR0912
     data: list[list[int]],
     target_microbatch_size: int,
     samples: list[tuple[int, int, int]] | None = None,
-    adapter_padding_multiple: int = 128,
+    adapter_padding_multiple: int = ADAPTER_PADDING_MULTIPLE,
     time_limit: int = 600,
     *,
     verbose: bool = False,
@@ -1742,7 +1745,7 @@ def solve_micro_milp_min_remaining_impl(  # noqa: C901, PLR0912, PLR0915
     target_microbatch_size: int,
     num_bins: int,
     samples: list[tuple[int, int, int]] | None = None,
-    adapter_padding_multiple: int = 128,
+    adapter_padding_multiple: int = ADAPTER_PADDING_MULTIPLE,
     time_limit: int = 600,
     *,
     verbose: bool = False,
@@ -1992,7 +1995,7 @@ if __name__ == "__main__":
             groups,
             num_global_batches_per_adapter=1,
             capacity=4096,
-            adapter_padding_multiple=128,
+            adapter_padding_multiple=get_lora_kernel_config("fused_multi_lora_block_size_m"),
             verbose=verbose,
             time_limit=0.5,
         )

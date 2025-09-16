@@ -16,6 +16,8 @@ To reproduce results, you need at least 192 GB RAM, 256 GB disk space, and 4 NVI
 ### Hardware dependencies
 You need a Linux machine with at least 192 GB RAM, 256 GB free disk space, and 4 NVIDIA H100 GPUs with NVLinks.
 
+We also provide instructions to set up the kernel and layer benchmarks for other hardware (1 GPU is enough). However, the results may not be exactly the same as those in the paper. Technically, our results will be better on the latest hardware with a larger TFLOPS/Memory Bandwidth ratio, so if you are using older hardware, the results may be slightly worse.
+
 ### Software dependencies
 You need Conda to set up the environment. The environment includes CUDA 12.6, PyTorch v2.6.0, megatron-core v0.11.0, and Triton v3.2.0.
 
@@ -46,6 +48,20 @@ None
    python gen_sample_distribution.py
    ```
 
+4. **Check whether your hardware has been tuned for Triton**: Our kernels need to be tuned to choose the best tiling strategy for your hardware. Please check `lorafusion/ops/triton_ops/config.py` to see whether your hardware has been tuned. Here we have included the tuned configs for the following GPUs:
+   - h100-80gb-hbm3 (recommended)
+   - a100-sxm4-80gb
+   - a100-80gb-pcie
+   - geforce-rtx-3090
+
+   If not, you need to tune it by running:
+   ```bash
+   cd /PATH/TO/lorafusion/
+   python tools/tune_kernels.py
+   ```
+
+   And then update the `lorafusion/ops/triton_ops/config.py` file with the output tuned configurations.
+
 ## Evaluation Workflow
 
 ### Major Claims
@@ -54,7 +70,7 @@ None
 
 - **(C2)**: Our fused kernels are up to 1.39× faster (average 1.27×) and can replace existing LoRA kernels. See Section 4.2 and Figure 5, Figure 6, and Figure 7.
 
-### Experiments
+### Experiments (4 GPUs, each with 80GB memory)
 
 1. **Make sure you are in the `benchmarks_paper` directory.**
 
@@ -71,7 +87,29 @@ None
 
 3. **Check the results in the `results` directory. The script automatically creates plots like those in Figure 0, Figure 1, Figure 5, Figure 6, and Figure 7.**
 
+### Single GPU Kernel and Layer Benchmarks
+
+If you only have 1 GPU, you can run the kernel and layer benchmarks by running:
+```bash
+bash scripts/run_all.sh kernel
+bash scripts/run_all.sh layer
+```
+
+Check the results in the `results` directory. The script automatically creates plots like those in Figure 5, Figure 6, and potentially Figure 7 (if you have NCU profiling enabled).
+
 ## Notes on Reusability
 
-To customize experiments, edit `scripts/run_all.sh` and the related sub-scripts.
-We provide detailed scripts for each experiment and corresponding Python scripts to generate the plots.
+1. To customize experiments, edit `scripts/run_all.sh` and the related sub-scripts. We provide detailed scripts for each experiment and corresponding Python scripts to generate the plots.
+2. For other old GPUs compared to H100, the results may be worse. In theory, if the ratio of TFLOPS over Memory Bandwidth is smaller, the results will be worse. Another possible reason is that we observe the power consumption issue during the kernel config tuning process, where the limit of the power consumption affects the correctness of the tuned configurations and the benchmarking results. In this case, we recommend you to set a GPU frequency lower than the default frequency for fair performance comparison.
+   ```bash
+   # Disable Automatic Frequency Scaling:
+   sudo nvidia-smi -pm 1
+   sudo nvidia-smi --auto-boost-default=0
+
+   # Find supported frequencies by:
+   nvidia-smi -q -d SUPPORTED_CLOCKS
+   
+   # Set the frequencies by, e.g.
+   # sudo nvidia-smi -ac <memory clock,graphics clock>
+   sudo nvidia-smi -ac 6251,1050
+   ```

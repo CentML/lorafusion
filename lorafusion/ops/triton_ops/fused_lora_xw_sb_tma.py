@@ -1,4 +1,4 @@
-# ruff: noqa: ANN001, N803, N806, E731
+# ruff: noqa: ANN001, N803, N806
 """Triton Fused LoRA xw + sb using TMA."""
 
 from functools import partial
@@ -9,6 +9,7 @@ import triton
 import triton.language as tl
 from loguru import logger
 
+from lorafusion.ops.triton_ops.config import LoRATritonConfig, get_lora_kernel_config
 from lorafusion.ops.triton_ops.tma_utils import (
     TmaAutoTuneHelper,
     _compute_pid,
@@ -71,57 +72,6 @@ def torch_lora_xw_sb_ref(
     return result
 
 
-def fused_lora_xw_sb_tma_kernel_get_configs() -> list[triton.Config]:
-    """Get the configurations for the fused LoRA xw + sb kernel using TMA.
-
-    Note:
-        - Best config in H100 for 4096x4096:
-            - BM = 128, BN = 256, BK = 64, s = 3, w = 8,
-            - SUBTILE = False, LUF = None, FLAT = False
-        - While for plain matmul, FLAT should be set to True.
-            we find that current implementation of Flatten makes the performance
-            quite bad for this kernel.
-    """
-    return [
-        triton.Config(
-            {
-                "BLOCK_SIZE_M": BM,
-                "BLOCK_SIZE_N": BN,
-                "BLOCK_SIZE_K": BK,
-                "GROUP_SIZE_M": 8,
-                "EPILOGUE_SUBTILE": SUBTILE,
-                "LOOP_UNROLL_FACTOR": LUF,
-                "FLATTEN": FLAT,
-            },
-            num_stages=s,
-            num_warps=w,
-        )
-        # # For tuning:
-        # for BM in [128]
-        # for BN in [128, 256]
-        # for BK in [32, 64, 128]
-        # for s in ([3, 4, 5, 6])
-        # for w in [4, 8]
-        # for SUBTILE in [True, False]
-        # for LUF in [None, 1, 2, 8]
-        # for FLAT in [True, False]
-        # # Pre-tuned config:
-        for BM in [128]
-        for BN in [256]
-        for BK in [64]
-        for s in ([3])
-        for w in [8]
-        for SUBTILE in [False]
-        for LUF in [None]
-        for FLAT in [False]
-        if BM * BK < 256 * 256
-    ]
-
-
-@triton.autotune(
-    configs=fused_lora_xw_sb_tma_kernel_get_configs(),
-    key=["M", "N", "K", "OUTPUT_DTYPE"],
-)
 @triton.jit
 def fused_lora_xw_sb_tma_kernel(
     x_desc_ptr,
@@ -299,6 +249,7 @@ def fused_lora_xw_sb_tma(  # noqa: C901
     alpha: float,
     *,
     bias: torch.Tensor | None = None,
+    config: LoRATritonConfig | None = None,
 ) -> torch.Tensor:
     """Triton Fused LoRA xw + sb using TMA."""
     # Check constraints.
@@ -347,6 +298,17 @@ def fused_lora_xw_sb_tma(  # noqa: C901
 
     # Allocates output.
     out = torch.empty((M, N), device=x.device, dtype=x.dtype)
+
+    # Get configs
+    if config is None:
+        lora_kernel_config = get_lora_kernel_config("fused_lora_xw_sb_tma")
+    else:
+        lora_kernel_config = config
+    triton_config = lora_kernel_config.to_triton_config()
+    # Set TMA-specific config parameters
+    triton_config.kwargs["EPILOGUE_SUBTILE"] = False
+    triton_config.kwargs["LOOP_UNROLL_FACTOR"] = None
+    triton_config.kwargs["FLATTEN"] = False
 
     # Initialize TMA descriptors.
     NUM_SMS = torch.cuda.get_device_properties("cuda").multi_processor_count
@@ -414,6 +376,7 @@ def fused_lora_xw_sb_tma(  # noqa: C901
         bias_stride,
         NUM_SMS=NUM_SMS,
         OUTPUT_DTYPE=torch_dtype_to_triton_dtype(out.dtype),
+        **triton_config.all_kwargs(),
     )
     if (
         not torch.compiler.is_compiling()
@@ -437,14 +400,9 @@ def verify_kernel_correctness(
     alpha: float = 16.0,
     dtype: torch.dtype = torch.bfloat16,
 ) -> None:
-    """Verify that the kernel produces correct results for all tested dimensions.
-
-    This is particularly important when M is not divisible by 128.
-    """
+    """Verify that the kernel produces correct results for all tested dimensions."""
     for m in m_values:
-        logger.info(
-            f"Verifying kernel correctness for m={m} (with BLOCK_SIZE_M=128)..."
-        )
+        logger.info(f"Verifying kernel correctness for m={m}...")
 
         # Test without bias
         inputs_no_bias = prepare_func(

@@ -17,15 +17,15 @@ Follow the instructions in the [Development](./development.md) guide to install 
 
 ### Step 3 Install Torch, LoRAFusion and Dependencies
 
+Install the CUDAToolkit:
+```bash
+conda install -y nvidia/label/cuda-12.6.0::cuda-toolkit
+```
+
 ```bash
 pip install torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0 --index-url https://download.pytorch.org/whl/cu124
 pip install -r requirements.txt
 pip install -e .
-```
-
-If you want to use NCU, perhaps you need to install the CUDAToolkit:
-```bash
-conda install -y nvidia/label/cuda-12.6.0::cuda-toolkit
 ```
 
 Additionally, if you want to use the proposed solver, you need to install the following dependencies:

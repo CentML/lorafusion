@@ -9,6 +9,7 @@ import triton
 import triton.language as tl
 from loguru import logger
 
+from lorafusion.ops.triton_ops.config import KERNEL_SPILL_VERBOSE
 from lorafusion.ops.triton_ops.utils import torch_dtype_to_triton_dtype
 from lorafusion.utils.benchmark import benchmark, set_warmup_and_number
 from lorafusion.utils.testing import assert_verbose_allclose_two_rounds
@@ -293,7 +294,11 @@ def fused_lora_dyw_dsa(
         ENABLE_DROPOUT=dropout_p != 0,
         OUTPUT_DTYPE=torch_dtype_to_triton_dtype(dx.dtype),
     )
-    if compiled_kernel is not None and compiled_kernel.n_spills > 0:
+    if (
+        KERNEL_SPILL_VERBOSE
+        and compiled_kernel is not None
+        and compiled_kernel.n_spills > 0
+    ):
         logger.warning(
             f"Compiled kernel: {compiled_kernel}, "
             f"n_regs: {compiled_kernel.n_regs}, "

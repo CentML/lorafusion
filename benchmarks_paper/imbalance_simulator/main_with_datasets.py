@@ -25,6 +25,7 @@ from lorafusion.utils.common import (
     stringify_keys,
     update_loguru_level,
 )
+from lorafusion.ops.triton_ops.config import get_lora_kernel_config
 
 update_loguru_level("INFO")
 
@@ -352,7 +353,7 @@ def main(  # noqa: PLR0915
         num_pipeline_stages=num_pipeline_stages,
         num_global_batches_per_adapter=min_num_batches,
         capacity=capacity,
-        adapter_padding_multiple=128,
+        adapter_padding_multiple=get_lora_kernel_config("fused_multi_lora_block_size_m"),
         verbose=False,
         time_limit=3.0,
     )
