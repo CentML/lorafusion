@@ -35,7 +35,6 @@ if TYPE_CHECKING:
 
 multi_lora_manager: MultiLoRAManager | None = None
 THREE_DIM = 3
-MULTI_LORA_BLOCK_SIZE = get_lora_kernel_config("fused_multi_lora_block_size_m")
 
 
 def init_multi_lora_manager(
@@ -491,7 +490,7 @@ def _fused_linear_multi_lora_forward(
             masked_scaled_x, dropout_mask = blocked_seeded_dropout(
                 x=padded_x,
                 block_to_dropout_p=block_to_dropout_p,
-                block_size=MULTI_LORA_BLOCK_SIZE,
+                block_size=get_lora_kernel_config("fused_multi_lora_block_size_m"),
                 seed=seed,
                 store_mask=True,
             )
@@ -849,7 +848,7 @@ if __name__ == "__main__":
         lora_rank_list=lora_rank_list,
         dropout_p_list=dropout_p_list,
         alpha_list=alpha_list,
-        block_size_m=MULTI_LORA_BLOCK_SIZE,
+        block_size_m=get_lora_kernel_config("fused_multi_lora_block_size_m"),
     )
     padded_seq_len_list = multi_lora_batch_info.padded_seq_len_list
     block_to_lookup_table = multi_lora_batch_info.block_to_lookup_table
@@ -906,7 +905,9 @@ if __name__ == "__main__":
                 masked_scaled_x, dropout_mask = blocked_seeded_dropout(
                     x=padded_x,
                     block_to_dropout_p=block_to_dropout_p,
-                    block_size_m=MULTI_LORA_BLOCK_SIZE,
+                    block_size_m=get_lora_kernel_config(
+                        "fused_multi_lora_block_size_m"
+                    ),
                     seed=seed,
                     store_mask=True,
                 )
