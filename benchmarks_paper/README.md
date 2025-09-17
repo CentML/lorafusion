@@ -87,11 +87,18 @@ You need Conda to set up the environment. The environment includes CUDA 12.6, Py
 ### Single GPU Kernel and Layer Benchmarks
 
 If you only have 1 GPU, you can run the single GPU benchmark, and kernel and layer benchmarks by running:
-```bash
-bash scripts/run_all.sh all_single_gpu
-```
 
-Check the results in the `results` directory. The script automatically creates plots like those in sub figure 1 of Figure 1, Figure 5, Figure 6, and potentially Figure 7 (if you have NCU profiling enabled).
+- For GPUs with memory larger or equal to 80GB, you can run (layer + kernel + single GPU main result)
+   ```bash
+   bash scripts/run_all.sh all_single_gpu
+   ```
+- For GPUs with memory smaller than 80GB, you can run (layer + kernel):
+   ```bash
+   bash scripts/run_all.sh layer
+   bash scripts/run_all.sh kernel
+   ```
+
+Check the results in the `results` directory. The script automatically creates plots like those in sub figure 1 of Figure 1 (if the GPU memory is 80GB or above), Figure 5, Figure 6, and potentially Figure 7 (if you have NCU profiling enabled).
 
 ## Notes on Reusability
 
