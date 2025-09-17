@@ -554,9 +554,11 @@ def main(
     logger.info(f"Device short name: {get_device_short_name()}")
     for kernel_name, result in results.items():
         logger.info(f"{kernel_name}: {result.time_ms:.3f}ms")
-        if result.torch_gemm_ms is not None:
-            logger.info(f"  PyTorch baseline: {result.torch_gemm_ms:.3f}ms")
         logger.info(f"  Config: {result.config}")
+    logger.info(
+        "Please update the lorafusion/ops/triton_ops/config.py file with the "
+        "tuned configurations."
+    )
 
 
 if __name__ == "__main__":

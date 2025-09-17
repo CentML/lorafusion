@@ -11,10 +11,10 @@ from loguru import logger
 from transformers import AutoConfig, HfArgumentParser
 
 from lorafusion.ops.multi_lora import (
-    MULTI_LORA_BLOCK_SIZE,
     get_multi_lora_manager,
     prepare_multi_lora_batch_info,
 )
+from lorafusion.ops.triton_ops.config import get_lora_kernel_config
 from lorafusion.train.training_utils import (
     MockDataArguments,
     ModelArguments,
@@ -200,7 +200,7 @@ def run_multi_lora_benchmarks(
                 lora_rank_list=lora_rank_list,
                 dropout_p_list=dropout_p_list,
                 alpha_list=alpha_list,
-                block_size_m=MULTI_LORA_BLOCK_SIZE,
+                block_size_m=get_lora_kernel_config("fused_multi_lora_block_size_m"),
                 output_dtype=dtype,
                 allow_empty_micro_batch_info=True,
             )
